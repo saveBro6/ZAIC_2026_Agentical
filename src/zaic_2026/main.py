@@ -70,6 +70,11 @@ def parse_args() -> argparse.Namespace:
         help="Optional: limit number of questions to process (for debugging)",
     )
     parser.add_argument(
+        "--fresh-start",
+        action="store_true",
+        help="Delete existing result directory and archive to start fresh from scratch",
+    )
+    parser.add_argument(
         "--tensor-parallel-size",
         type=int,
         default=None,
@@ -113,6 +118,16 @@ def main() -> None:
 
     data_dir = Path(args.data_dir)
     result_dir = Path(args.result_dir)
+
+    if args.fresh_start:
+        if result_dir.exists():
+            print(f"--fresh-start: cleaning up existing result directory '{result_dir}'")
+            shutil.rmtree(result_dir)
+        zip_path = Path(f"{result_dir.parent / result_dir.name}.zip")
+        if zip_path.exists():
+            print(f"--fresh-start: removing existing archive '{zip_path}'")
+            zip_path.unlink()
+
     logs_dir = result_dir / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     submission_path = result_dir / "submission.jsonl"
