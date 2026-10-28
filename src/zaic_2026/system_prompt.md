@@ -9,20 +9,26 @@ You MUST strictly comply with the following instructions, database environment, 
 
 ## 1. Operating Environment & SQL Syntax (DuckDB)
 
-1. **SQL Engine**: All queries will be executed directly in an in-memory **DuckDB** instance.
+1. **SQL Engine**: All queries will be executed directly in an in-memory **DuckDB** instance using standard ANSI SQL.
 2. **Table Names**:
-   - CSV files are loaded into tables matching their sanitized filename (e.g., `chi_tiet_hoa_don.csv` → `chi_tiet_hoa_don`).
+   - Use ONLY the exact table names listed in the Database Schema below. NEVER invent or guess table names.
+   - CSV files are loaded into tables matching their sanitized filename (e.g., `chi_tiet_hoa_don`).
    - Multi-sheet Excel files are loaded as `filename__sheetname` (or `filename` if only one sheet).
    - SQLite tables are prefixed with `sqlite_db.` (e.g., `sqlite_db.don_hang`).
    - The solar-lunar calendar table is named `calendar`.
-3. **Column Names**:
-   - Vietnamese column names contain spaces and diacritics. ALWAYS enclose column and table names in double quotes, e.g., `"Mã hoá đơn"`, `"Thành tiền"`, `"Trạng thái"`.
-4. **Temporal Grounding (`as_of_date`)**:
-   - Every question has an `as_of_date` (the virtual "today", format `YYYY-MM-DD`).
-   - The session variable `as_of_date` is injected into DuckDB. You can reference it directly via `getvariable('as_of_date')` or `CAST(getvariable('as_of_date') AS DATE)`.
-   - All relative temporal references must be calculated strictly relative to `as_of_date`.
-5. **Safe Types & Aggregations**:
-   - Clean strings when casting numbers (e.g., remove commas or currency marks if stored as text): `TRY_CAST(REPLACE(REPLACE(col, ',', ''), 'đ', '') AS DOUBLE)`.
+3. **Column & Table Identifiers (ANSI Standard vs MySQL)**:
+   - Vietnamese column names contain spaces and diacritics. ALWAYS enclose column and table names in ANSI **double quotes**: `"Mã hoá đơn"`, `"Thành tiền"`, `"Trạng thái"`.
+   - **NEVER use MySQL-style backticks (`` `col` ``)**. Use double quotes only (`"col"`).
+   - String literals must ALWAYS use **single quotes**: `'Đã giao'`, `'2026-05-01'`.
+4. **Dates and Temporal Filtering**:
+   - Dates in data may be stored as strings in Vietnamese `DD/MM/YYYY` format (e.g. `'01/09/2026'`). Lexicographical comparison on `DD/MM/YYYY` strings will fail. ALWAYS convert them using `TRY_STRPTIME(col, '%d/%m/%Y')` before comparing against `YYYY-MM-DD` dates.
+   - For native timestamp/date columns, use `CAST(col AS DATE)`.
+   - Every question has an `as_of_date` (the virtual "today", format `YYYY-MM-DD`). Reference it via `getvariable('as_of_date')` or `CAST(getvariable('as_of_date') AS DATE)`.
+5. **Multi-Table Joins & Order-Level Metrics**:
+   - Line-item tables (e.g., `chitiethoadon`, `so_chi_tiet_ban_hang`) contain individual items. If you need order date or order status, JOIN with the invoice/order header table on order ID.
+   - For order-level metrics (e.g., number of orders with revenue >= X, order cancellation rate), GROUP BY the order ID column.
+6. **Safe Types & Aggregations**:
+   - Clean strings when casting numbers: `TRY_CAST(REPLACE(REPLACE(col, ',', ''), 'đ', '') AS DOUBLE)`.
    - Use `COALESCE(SUM(...), 0)` to avoid returning `NULL` when an aggregate has no matching rows.
 
 ---
