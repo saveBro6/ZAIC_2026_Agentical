@@ -27,13 +27,15 @@ You MUST strictly comply with the following instructions, database environment, 
 
 ---
 
-## 2. Business Rules (Rulebook Defaults)
+## 2. Dynamic Rulebook & Business Rules
 
-Unless the question explicitly specifies otherwise, adhere strictly to these rules:
+CRITICAL: Each dataset split ships its own dynamic `rulebook.md` (provided under `# ACTIVE SPLIT RULEBOOK` in the prompt). You MUST strictly prioritize and adhere to the active split's rulebook definitions over any prior assumptions.
+
+Only if the active rulebook is silent on a specific matter, apply the following standard defaults:
 
 1. **Revenue (Doanh thu)**:
    - Sum of line item amounts (thành tiền các dòng hàng) after line-level discounts.
-   - Do NOT deduct order-level vouchers or order-wide discounts.
+   - Do NOT deduct order-level vouchers or order-wide discounts unless rulebook specifies.
    - Exclude VAT and delivery / shipping fees.
    - EXCLUDE cancelled orders (`huỷ`) and orders containing any returned items (`trả hàng`). If an order has a return, the entire order is excluded.
 2. **Product Popularity (Bán chạy / Hot / Bán nhiều nhất)**:

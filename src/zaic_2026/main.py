@@ -18,13 +18,26 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .data_loader import load_business_data, preload_all_businesses
-from .executor import execute_sql
-from .formatter import format_answer
-from .llm_engine import generate_answer, init_engine
-from .logger import write_log
-from .prompt_builder import build_messages, load_system_prompt
-from .schemas import LLMResponse
+if __package__ is None or __package__ == "":
+    src_dir = str(Path(__file__).resolve().parent.parent)
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+    from zaic_2026.data_loader import load_business_data, preload_all_businesses
+    from zaic_2026.executor import execute_sql
+    from zaic_2026.formatter import format_answer
+    from zaic_2026.llm_engine import generate_answer, init_engine
+    from zaic_2026.logger import write_log
+    from zaic_2026.prompt_builder import build_messages, load_system_prompt
+    from zaic_2026.schemas import LLMResponse
+else:
+    from .data_loader import load_business_data, preload_all_businesses
+    from .executor import execute_sql
+    from .formatter import format_answer
+    from .llm_engine import generate_answer, init_engine
+    from .logger import write_log
+    from .prompt_builder import build_messages, load_system_prompt
+    from .schemas import LLMResponse
+
 
 
 def parse_args() -> argparse.Namespace:
@@ -131,9 +144,26 @@ def main() -> None:
     total = len(questions)
     processed = 0
 
+    processed_ids: set[str] = set()
+    if submission_path.exists():
+        with open(submission_path, "r", encoding="utf-8") as existing_file:
+            for line in existing_file:
+                line = line.strip()
+                if line:
+                    try:
+                        record = json.loads(line)
+                        if "id" in record:
+                            processed_ids.add(record["id"])
+                    except Exception:
+                        pass
+        if processed_ids:
+            print(f"Resuming: found {len(processed_ids)} already processed questions.")
+
     with open(submission_path, "a", encoding="utf-8") as submission_file:
         for q in questions:
             qid = q["id"]
+            if qid in processed_ids:
+                continue
             biz_id = q["business_id"]
             as_of_date = q["as_of_date"]
             processed += 1

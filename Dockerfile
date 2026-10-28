@@ -10,7 +10,8 @@ RUN uv pip install --system --no-cache-dir \
     "duckdb>=2.0.0" \
     "polars>=2.1.0" \
     "fastexcel>=0.21.0" \
-    "pydantic>=2.14.1"
+    "pydantic>=2.14.1" \
+    "pyarrow>=26.0.0"
 
 # Pre-install DuckDB SQLite extension while network is available during build
 RUN python3 -c "import duckdb; conn=duckdb.connect(); conn.execute('INSTALL sqlite;')"

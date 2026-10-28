@@ -1,12 +1,16 @@
 """Strict type-aware answer formatting per DataMate competition rules.
 
 Each answer type has specific formatting requirements (§4 and §9 of the
-rulebook).  This module converts raw SQL results into the exact JSON
+rulebook). This module converts raw SQL results into the exact JSON
 values expected by the evaluation harness.
 """
 
+from datetime import date, datetime
+from decimal import Decimal
 import math
-from typing import Any, Optional
+import re
+from typing import Any, Optional, Union
+import unicodedata
 
 
 def format_answer(
@@ -48,43 +52,69 @@ def format_answer(
         return None
 
 
-def _format_number(rows: list) -> Optional[int]:
-    """Number answers are integers (VND, counts, quantities)."""
+def _format_number(rows: list) -> Optional[Union[int, float]]:
+    """Number answers are integers (VND, counts) or rounded to 2 decimal places."""
     if not rows or rows[0][0] is None:
         return None
-    val = rows[0][0]
-    return int(round(float(val)))
+    try:
+        val = float(rows[0][0])
+    except (ValueError, TypeError):
+        return None
+    if math.isnan(val) or math.isinf(val):
+        return None
+    if val.is_integer():
+        return int(val)
+    return round(val, 2)
 
 
 def _format_percent(rows: list) -> Optional[float]:
     """Percent answers are rounded to exactly 2 decimal places."""
     if not rows or rows[0][0] is None:
         return None
-    val = float(rows[0][0])
+    try:
+        val = float(rows[0][0])
+    except (ValueError, TypeError):
+        return None
     if math.isnan(val) or math.isinf(val):
         return None
     return round(val, 2)
 
 
 def _format_string(rows: list) -> Optional[str]:
-    """String answers preserve the exact name from data."""
+    """String answers preserve the exact name with NFC Unicode normalization."""
     if not rows or rows[0][0] is None:
         return None
-    return str(rows[0][0])
+    raw = str(rows[0][0])
+    return unicodedata.normalize("NFC", raw).strip()
 
 
 def _format_date(rows: list) -> Optional[str]:
     """Date answers must be ISO ``YYYY-MM-DD`` or ``YYYY-MM``."""
     if not rows or rows[0][0] is None:
         return None
-    raw = str(rows[0][0])
-    # Handle datetime strings by taking only the date part
-    if len(raw) >= 10 and raw[4] == "-" and raw[7] == "-":
+    val = rows[0][0]
+
+    # Handle native date/datetime objects from DuckDB
+    if isinstance(val, (date, datetime)):
+        return val.strftime("%Y-%m-%d")
+
+    raw = str(val).strip()
+
+    # Handle ISO YYYY-MM-DD
+    if re.match(r"^\d{4}-\d{2}-\d{2}", raw):
         return raw[:10]
-    if len(raw) == 7 and raw[4] == "-":
+
+    # Handle ISO YYYY-MM
+    if re.match(r"^\d{4}-\d{2}$", raw):
         return raw
-    # Fallback: return first 10 chars
-    return raw[:10]
+
+    # Handle Vietnamese format DD/MM/YYYY or DD-MM-YYYY
+    m = re.match(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})", raw)
+    if m:
+        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        return f"{year:04d}-{month:02d}-{day:02d}"
+
+    return raw[:10] if len(raw) >= 10 else raw
 
 
 def _format_boolean(rows: list) -> Optional[bool]:
@@ -147,11 +177,16 @@ def _format_cell(val: Any) -> Any:
         return None
     if isinstance(val, bool):
         return val
+    if isinstance(val, Decimal):
+        val_float = float(val)
+        return int(val_float) if val_float.is_integer() else val_float
     if isinstance(val, float):
-        # Convert to int if it's a whole number (e.g., monetary amounts)
         if val == int(val) and not (math.isnan(val) or math.isinf(val)):
             return int(val)
         return val
     if isinstance(val, int):
         return val
-    return str(val)
+    if isinstance(val, (date, datetime)):
+        return val.strftime("%Y-%m-%d")
+    return unicodedata.normalize("NFC", str(val)).strip()
+

@@ -1,9 +1,6 @@
 """vLLM offline engine wrapper with structured-output enforcement."""
 
-from typing import Optional
-import torch
-from vllm import LLM, SamplingParams
-from vllm.sampling_params import GuidedDecodingParams
+from typing import Any, Optional
 
 from .schemas import LLMResponse
 
@@ -13,7 +10,7 @@ def init_engine(
     tensor_parallel_size: Optional[int] = None,
     gpu_memory_utilization: float = 0.9,
     max_model_len: int = 16384,
-) -> LLM:
+) -> Any:
     """Initialise the vLLM engine for offline inference.
 
     Configuration notes
@@ -25,6 +22,9 @@ def init_engine(
     * ``max_model_len=16384`` provides ample context for schema + rulebook + question.
     * ``trust_remote_code=True`` required for Qwen2.5 tokenizer.
     """
+    import torch
+    from vllm import LLM
+
     if tensor_parallel_size is None:
         gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 1
         tensor_parallel_size = min(2, max(1, gpu_count))
@@ -39,7 +39,7 @@ def init_engine(
     )
 
 
-def generate_answer(engine: LLM, messages: list[dict]) -> str:
+def generate_answer(engine: Any, messages: list[dict]) -> str:
     """Run a single structured-output generation.
 
     Parameters
@@ -54,11 +54,14 @@ def generate_answer(engine: LLM, messages: list[dict]) -> str:
     str
         Raw JSON text conforming to the ``LLMResponse`` schema.
     """
+    from vllm import SamplingParams
+    from vllm.sampling_params import GuidedDecodingParams
+
     guided_params = GuidedDecodingParams(
         json=LLMResponse.model_json_schema(),
     )
     sampling_params = SamplingParams(
-        temperature=0.1,
+        temperature=0.0,
         max_tokens=2048,
         guided_decoding=guided_params,
     )
@@ -72,3 +75,4 @@ def generate_answer(engine: LLM, messages: list[dict]) -> str:
 
     outputs = engine.generate([prompt_text], sampling_params=sampling_params)
     return outputs[0].outputs[0].text
+
