@@ -11,18 +11,100 @@
   - Request install new dependencies if not found using: `uv add <package>` or `uv pip install <package>`
 - **Performance Priority**: Leverage `uv`'s caching mechanisms to ensure ultra-fast execution of pipelines and autonomous tasks.
 
-#TODO: add new skills when operating with .csv, .xlsx, .sqlite extension. 
-### Agent Skill: Parquet Data Operations
+### Agent Skill: Polars Data Operations (CSV & Excel)
 
-**Trigger:** Reading, querying, filtering, aggregating, or writing `.parquet` files.
+**Trigger:** Reading, parsing, filtering, transforming, or aggregating `.csv` and `.xlsx` tabular data.
 
 **Core Rules:**
+
 1. **Mandatory Imports:**
-   Always use PyArrow for native Parquet handling:
+   Always use Polars as the primary engine:
    ```python
-   import pyarrow.parquet as pq
-   import pyarrow.compute as pc
+   import polars as pl
    ```
+
+2. **Lazy Evaluation for Large CSVs:**
+   * Default to `pl.scan_csv()` instead of `pl.read_csv()` when dealing with large datasets or complex pipelines to allow predicate and projection pushdown.
+   * Finalize lazy execution with `.collect()` (or `.collect(engine="streaming")` if required):
+     ```python
+     q = (
+         pl.scan_csv("data.csv")
+         .filter(pl.col("status") == "active")
+         .select(["id", "created_at", "amount"])
+     )
+     df = q.collect()
+     ```
+
+3. **Multi-Sheet Excel Processing:**
+   * Use `fastexcel` (Polars' default backend) to inspect sheet names in milliseconds without parsing the entire file:
+     ```python
+     import fastexcel
+     excel_reader = fastexcel.read_excel("data.xlsx")
+     sheet_names = excel_reader.sheet_names
+     ```
+   * Read the required sheet (or iterate over sheets) with Polars:
+     ```python
+     df = pl.read_excel("data.xlsx", sheet_name=sheet_names[0])
+     ```
+
+4. **Expression-First Computations:**
+   * Never iterate over rows or use Python-level lambdas (`apply()`) unless strictly unavoidable.
+   * Handle Vietnamese column names with quotes: `pl.col("Tên sản phẩm")`.
+   * Write transforms inside native execution contexts:
+     * Modifications: `df.with_columns(...)`
+     * Subsetting: `df.select(...)` and `df.filter(...)`
+     * Aggregations: `df.group_by(...).agg(...)`
+
+---
+
+### Agent Skill: DuckDB Analytical Engine
+
+**Trigger:** Reading, querying, transforming, aggregating, or joining `.sqlite`, `.sqlite3`, `.db`, and cross-format data.
+
+**Core Rules:**
+
+1. **Mandatory Imports:**
+   Use DuckDB as the in-process OLAP engine:
+   ```python
+   import duckdb
+   ```
+
+2. **Native SQLite Attachment (Read-Only):**
+   * Attach SQLite databases directly with the read-only flag:
+     ```python
+     con = duckdb.connect()
+     con.execute("ATTACH 'database.sqlite' AS sqlite_db (TYPE SQLITE, READ_ONLY);")
+     ```
+
+3. **In-Memory Analytical SQL:**
+   * Query SQLite tables directly using standard SQL syntax with double-quoted Vietnamese columns:
+     ```python
+     query = """
+     SELECT "ma_khach", COUNT(*) AS so_don, AVG("don_gia") AS gia_tb
+     FROM sqlite_db.orders
+     WHERE "trang_thai" = 'completed'
+     GROUP BY "ma_khach"
+     """
+     rel = con.sql(query)
+     ```
+
+4. **Zero-Copy Interoperability:**
+   * Convert query results directly to Polars or native Python data structures (avoid `.arrow()`):
+     ```python
+     df_polars = con.sql("SELECT * FROM sqlite_db.users").pl()
+     rows = con.sql("SELECT * FROM sqlite_db.users").fetchall()
+     ```
+
+5. **Cross-Format Queries:**
+   * Join SQLite tables and CSV files directly within DuckDB in memory:
+     ```python
+     query = """
+     SELECT o.*, c."lunar_date"
+     FROM sqlite_db.orders o
+     JOIN read_csv_auto('calendar.csv') c ON o."ngay" = c."solar_date"
+     """
+     rel = con.sql(query)
+     ```
 
 ## Coding & Output Style
 - Code comment, docstring must be written in English.

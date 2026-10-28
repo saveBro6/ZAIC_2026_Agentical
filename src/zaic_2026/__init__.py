@@ -1,2 +1,5 @@
-def main() -> None:
-    print("Hello from zaic-2026!")
+"""ZAIC 2026 DataMate baseline solution package."""
+
+from .main import main
+
+__all__ = ["main"]

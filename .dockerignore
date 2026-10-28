@@ -1,0 +1,15 @@
+.git
+.venv
+.gitignore
+__pycache__
+*.pyc
+dataset/
+EDA_output/
+docs/
+skills/
+uv.lock
+pyproject.toml
+testing.py
+AGENTS.md
+README.md
+.python-version
