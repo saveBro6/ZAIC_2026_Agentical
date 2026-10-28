@@ -55,16 +55,32 @@ def generate_answer(engine: Any, messages: list[dict]) -> str:
         Raw JSON text conforming to the ``LLMResponse`` schema.
     """
     from vllm import SamplingParams
-    from vllm.sampling_params import GuidedDecodingParams
 
-    guided_params = GuidedDecodingParams(
-        json=LLMResponse.model_json_schema(),
-    )
-    sampling_params = SamplingParams(
-        temperature=0.0,
-        max_tokens=2048,
-        guided_decoding=guided_params,
-    )
+    schema_json = LLMResponse.model_json_schema()
+
+    try:
+        from vllm.sampling_params import StructuredOutputsParams
+        struct_params = StructuredOutputsParams(json=schema_json)
+        try:
+            sampling_params = SamplingParams(
+                temperature=0.0,
+                max_tokens=2048,
+                structured_outputs=struct_params,
+            )
+        except TypeError:
+            sampling_params = SamplingParams(
+                temperature=0.0,
+                max_tokens=2048,
+                guided_decoding=struct_params,
+            )
+    except ImportError:
+        from vllm.sampling_params import GuidedDecodingParams
+        guided_params = GuidedDecodingParams(json=schema_json)
+        sampling_params = SamplingParams(
+            temperature=0.0,
+            max_tokens=2048,
+            guided_decoding=guided_params,
+        )
 
     tokenizer = engine.get_tokenizer()
     prompt_text = tokenizer.apply_chat_template(

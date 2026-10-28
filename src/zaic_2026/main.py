@@ -13,6 +13,7 @@ Meets all problem_contract specifications:
 
 import argparse
 import json
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -53,8 +54,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--result-dir",
         type=str,
-        default="/result",
-        help="Path to output directory where submission.jsonl and logs/ are stored",
+        default="results",
+        help="Path to output directory where submission.jsonl and logs/ are stored (default: results)",
     )
     parser.add_argument(
         "--model-path",
@@ -265,6 +266,17 @@ def main() -> None:
             )
 
     print("All questions completed.")
+
+    # Archive results into results.zip
+    zip_base_name = str(result_dir.parent / result_dir.name)
+    print(f"Creating archive: {zip_base_name}.zip from {result_dir}...")
+    archive_path = shutil.make_archive(
+        base_name=zip_base_name,
+        format="zip",
+        root_dir=str(result_dir.parent),
+        base_dir=result_dir.name,
+    )
+    print(f"Results archived successfully: {archive_path}")
 
 
 if __name__ == "__main__":

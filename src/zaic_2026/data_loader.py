@@ -95,7 +95,10 @@ def _load_xlsx(
             table_name = sanitize_table_name(f"{filepath.stem}__{sheet_name}")
 
         try:
-            df = pl.read_excel(str(filepath), sheet_name=sheet_name)
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*Could not determine dtype.*")
+                df = pl.read_excel(str(filepath), sheet_name=sheet_name)
         except Exception:
             continue
         if df.height == 0:
