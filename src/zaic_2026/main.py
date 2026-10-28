@@ -86,6 +86,12 @@ def parse_args() -> argparse.Namespace:
         default=0.9,
         help="vLLM GPU memory utilization fraction (default 0.9)",
     )
+    parser.add_argument(
+        "--max-model-len",
+        type=int,
+        default=32768,
+        help="vLLM maximum model context length (default: 32768)",
+    )
     return parser.parse_args()
 
 
@@ -153,6 +159,7 @@ def main() -> None:
         model_path=args.model_path,
         tensor_parallel_size=args.tensor_parallel_size,
         gpu_memory_utilization=args.gpu_memory_utilization,
+        max_model_len=args.max_model_len,
     )
     print("vLLM engine initialized successfully.")
 

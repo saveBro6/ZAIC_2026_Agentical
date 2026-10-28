@@ -9,6 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+#zip downloaded from colab
+*.zip
 #dataset
 dataset/
 
@@ -16,3 +18,4 @@ dataset/
 code-review/
 content/
 result/
+results/
